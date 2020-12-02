@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+      }
+      .light {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: grey;
+        margin-right: 30px;
+      }
+      .green {
+        background: green;
+      }
+      .yellow {
+        background: yellow;
+      }
+      .red {
+        background: red;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="light"></div>
+      <div class="light"></div>
+      <div class="light"></div>
+    </div>
+    <script>
+      const lights = [
+        {
+          duration: 2, //second
+          color: "green",
+        },
+        {
+          duration: 2, //second
+          color: "yellow",
+        },
+        {
+          duration: 2, //second
+          color: "red",
+        },
+      ];
+      const sleep = (interval) => {
+        const start = new Date();
+        return new Promise((resolve, reject) => {
+          const next = () => {
+            new Date() - start > interval
+              ? resolve()
+              : requestAnimationFrame(next);
+          };
+          next();
+        });
+      };
+      Array.prototype.slice
+        .call(document.getElementsByClassName("light"))
+        .map((element, index) => {
+          lights[index].activate = function () {
+            element.classList.add(this.color);
+          };
+          lights[index].deactivate = function () {
+            element.classList.remove(this.color);
+          };
+          lights[index].stop = async function () {
+            await sleep(this.duration * 1000);
+          };
+        });
+
+      const run = async () => {
+        let current = 2;
+        while (true) {
+          lights[current].deactivate();
+          lights[(current = (current + 1) % lights.length)].activate();
+          await lights[current].stop();
+        }
+      };
+      run();
+    </script>
+  </body>
+</html>
