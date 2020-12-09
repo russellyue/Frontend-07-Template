@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      .container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+      #box {
+        width: 700px;
+        line-height: 7px;
+      }
+      .cell {
+        height: 7px;
+        width: 7px;
+        border-right: 1px solid white;
+        background: grey;
+        display: inline-block;
+        line-height: 7px;
+        vertical-align: top;
+      }
+      .black {
+        background: black;
+      }
+      .save-button {
+        margin-top: 20px;
+        padding: 10px 10px;
+        color: green;
+        border: solid 1px green;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="box"></div>
+      <button class="save-button" onclick="save()">保存</button>
+    </div>
+    <script>
+      function save() {
+        localStorage["map"] = JSON.stringify(cells);
+        alert("保存成功！");
+      }
+      const boxElement = document.getElementById("box");
+      const boxFragment = document.createDocumentFragment();
+      const cells = localStorage["map"]
+        ? JSON.parse(localStorage["map"])
+        : Array(10000).fill(0);
+      let mouseDown = false;
+      clear = false;
+      for (let y = 0; y < 100; y++) {
+        for (let x = 0; x < 100; x++) {
+          const cellElement = document.createElement("div");
+          const position = y * 100 + x;
+          cellElement.classList.add("cell");
+          if (cells[position] === 1) {
+            cellElement.classList.add("black");
+          }
+          cellElement.addEventListener("mousemove", () => {
+            if (mouseDown) {
+              if (clear) {
+                cellElement.classList.remove("black");
+                cells[position] = 0;
+              } else {
+                cellElement.classList.add("black");
+                cells[position] = 1;
+              }
+            }
+          });
+          boxFragment.appendChild(cellElement);
+        }
+      }
+      boxElement.appendChild(boxFragment);
+      document.addEventListener("mousedown", (e) => {
+        mouseDown = true;
+        clear = e.which === 3;
+      });
+      document.addEventListener("mouseup", () => {
+        mouseDown = false;
+      });
+      document.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+      });
+    </script>
+  </body>
+</html>
