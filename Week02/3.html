@@ -45,6 +45,44 @@
       <button class="save-button" onclick="mapSearch.clearMap()">重置</button>
     </div>
     <script>
+      const sleep = (interval) => {
+        const start = new Date();
+        return new Promise((resolve, reject) => {
+          const next = () => {
+            new Date() - start > interval
+              ? resolve()
+              : requestAnimationFrame(next);
+          };
+          next();
+        });
+      };
+
+      class Sorted {
+        constructor(data, compare) {
+          this.data = data;
+          this.compare = compare || ((a, b) => a - b);
+        }
+        take() {
+          if (!this.data.length) return;
+          let min = this.data[0],
+            minIndex = 0;
+          this.data.forEach((element, index) => {
+            if (this.compare(min, element) > 0) {
+              min = element;
+              minIndex = index;
+            }
+          });
+          this.data[minIndex] = this.data[this.data.length - 1];
+          this.data.pop();
+          return min;
+        }
+        put(element) {
+          this.data.push(element);
+        }
+        get length() {
+          return this.data.length;
+        }
+      }
       const mapSearch = {
         cells: localStorage["map"]
           ? JSON.parse(localStorage["map"])
@@ -61,6 +99,9 @@
             cells[index] = 0;
           });
           this.drawMap();
+        },
+        distance([x, y], [x2, y2]) {
+          return (x - x2) ** 2 + (y - y2) ** 2;
         },
         drawMap() {
           this.boxElement.innerHTML = "";
@@ -89,11 +130,53 @@
           }
           this.boxElement.appendChild(boxFragment);
         },
+
+        async findPath(start, end) {
+          const map = Object.create(this.cells);
+          const sorted = new Sorted(
+            [],
+            (point1, point2) =>
+              this.distance(point1, end) - this.distance(point2, end)
+          );
+          const insert = async ([x, y], pre) => {
+            if (x < 0 || x > 99 || y < 0 || y > 99) return;
+            if (map[y * 100 + x]) return;
+            map[y * 100 + x] = pre;
+            this.boxElement.children[y * 100 + x].style.backgroundColor =
+              "lightgreen";
+            // await sleep(1);
+            sorted.put([x, y]);
+          };
+          await insert(start, start);
+          while (sorted.length) {
+            [x, y] = sorted.take();
+            if (x === end[0] && y === end[1]) {
+              const path = [];
+              while (x !== start[0] || y !== start[1]) {
+                path.push([x, y]);
+                [x, y] = map[y * 100 + x];
+                this.boxElement.children[y * 100 + x].style.backgroundColor =
+                  "purple";
+                await sleep(1);
+              }
+              return path.reverse();
+            }
+            await insert([x, y - 1], [x, y]);
+            // await insert([x + 1, y - 1]);
+            await insert([x + 1, y], [x, y]);
+            // await insert([x + 1, y + 1]);
+            await insert([x, y + 1], [x, y]);
+            // await insert([x - 1, y + 1]);
+            await insert([x - 1, y], [x, y]);
+            // await insert([x - 1, y - 1]);
+          }
+          return null;
+        },
       };
 
       document.addEventListener("mousedown", (e) => {
         mapSearch.mouseDown = true;
-        clear = e.which === 3;
+        mapSearch.clear = e.which === 3;
       });
       document.addEventListener("mouseup", () => {
         mapSearch.mouseDown = false;

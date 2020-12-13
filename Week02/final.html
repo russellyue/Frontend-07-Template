@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      .container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+      #box {
+        width: 700px;
+        line-height: 7px;
+      }
+      .cell {
+        height: 7px;
+        width: 7px;
+        border-right: 1px solid white;
+        background: grey;
+        display: inline-block;
+        line-height: 7px;
+        vertical-align: top;
+      }
+      .black {
+        background: black;
+      }
+      .save-button {
+        margin-top: 20px;
+        padding: 10px 10px;
+        color: green;
+        border: solid 1px green;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="box"></div>
+      <button class="save-button" onclick="mapSearch.save()">保存</button>
+      <button class="save-button" onclick="mapSearch.clearMap()">重置</button>
+    </div>
+    <script>
+      const sleep = (interval) => {
+        const start = new Date();
+        return new Promise((resolve, reject) => {
+          const next = () => {
+            new Date() - start > interval
+              ? resolve()
+              : requestAnimationFrame(next);
+          };
+          next();
+        });
+      };
+
+      class Heap {
+        constructor(data, compare) {
+          this.data = data;
+          this.compare = compare || ((a, b) => a - b);
+        }
+        take() {
+          if (!this.data.length) return;
+          if (this.data.length === 1) return this.data.pop();
+          let min = this.data[0];
+          this.data[0] = this.data.pop();
+          const l = this.data.length;
+          let i = 0;
+          while (true) {
+            let minPos = i;
+            if (
+              i * 2 + 1 <= l - 1 &&
+              this.compare(this.data[i], this.data[i * 2 + 1]) > 0
+            ) {
+              minPos = i * 2 + 1;
+            }
+            if (
+              i * 2 + 2 <= l - 1 &&
+              this.compare(this.data[i], this.data[i * 2 + 2]) > 0
+            ) {
+              minPos = i * 2 + 2;
+            }
+            if (minPos === i) {
+              break;
+            }
+            [this.data[i], this.data[minPos]] = [
+              this.data[minPos],
+              this.data[i],
+            ];
+            i = minPos;
+          }
+          return min;
+        }
+        put(element) {
+          this.data.push(element);
+          let i = this.data.length - 1;
+          while (
+            Math.floor((i - 1) / 2) >= 0 &&
+            this.compare(this.data[i], this.data[Math.floor((i - 1) / 2)]) < 0
+          ) {
+            [this.data[i], this.data[Math.floor((i - 1) / 2)]] = [
+              this.data[Math.floor((i - 1) / 2)],
+              this.data[i],
+            ];
+            i = Math.floor((i - 1) / 2);
+          }
+        }
+        get length() {
+          return this.data.length;
+        }
+      }
+      const mapSearch = {
+        cells: localStorage["map"]
+          ? JSON.parse(localStorage["map"])
+          : Array(10000).fill(0),
+        mouseDown: false,
+        clear: false,
+        boxElement: document.getElementById("box"),
+        save() {
+          localStorage["map"] = JSON.stringify(this.cells);
+          alert("保存成功！");
+        },
+        clearMap() {
+          this.cells.forEach((element, index, cells) => {
+            cells[index] = 0;
+          });
+          this.drawMap();
+        },
+        distance([x, y], [x2, y2]) {
+          return (x - x2) ** 2 + (y - y2) ** 2;
+        },
+        drawMap() {
+          this.boxElement.innerHTML = "";
+          const boxFragment = document.createDocumentFragment();
+          for (let y = 0; y < 100; y++) {
+            for (let x = 0; x < 100; x++) {
+              const cellElement = document.createElement("div");
+              const position = y * 100 + x;
+              cellElement.classList.add("cell");
+              if (this.cells[position] === 1) {
+                cellElement.classList.add("black");
+              }
+              cellElement.addEventListener("mousemove", () => {
+                if (this.mouseDown) {
+                  if (this.clear) {
+                    cellElement.classList.remove("black");
+                    this.cells[position] = 0;
+                  } else {
+                    cellElement.classList.add("black");
+                    this.cells[position] = 1;
+                  }
+                }
+              });
+              boxFragment.appendChild(cellElement);
+            }
+          }
+          this.boxElement.appendChild(boxFragment);
+        },
+
+        async findPath(start, end) {
+          const map = Object.create(this.cells);
+          const heap = new Heap(
+            [],
+            (point1, point2) =>
+              this.distance(point1, end) - this.distance(point2, end)
+          );
+          const insert = async ([x, y], pre) => {
+            if (x < 0 || x > 99 || y < 0 || y > 99) return;
+            if (map[y * 100 + x]) return;
+            map[y * 100 + x] = pre;
+            this.boxElement.children[y * 100 + x].style.backgroundColor =
+              "lightgreen";
+            // await sleep(1);
+            heap.put([x, y]);
+          };
+          await insert(start, start);
+          while (heap.length) {
+            [x, y] = heap.take();
+            if (x === end[0] && y === end[1]) {
+              const path = [];
+              while (x !== start[0] || y !== start[1]) {
+                path.push([x, y]);
+                [x, y] = map[y * 100 + x];
+                this.boxElement.children[y * 100 + x].style.backgroundColor =
+                  "purple";
+                await sleep(1);
+              }
+              return path.reverse();
+            }
+            await insert([x, y - 1], [x, y]);
+            await insert([x + 1, y - 1], [x, y]);
+            await insert([x + 1, y], [x, y]);
+            await insert([x + 1, y + 1], [x, y]);
+            await insert([x, y + 1], [x, y]);
+            await insert([x - 1, y + 1], [x, y]);
+            await insert([x - 1, y], [x, y]);
+            await insert([x - 1, y - 1], [x, y]);
+          }
+          return null;
+        },
+      };
+
+      document.addEventListener("mousedown", (e) => {
+        mapSearch.mouseDown = true;
+        mapSearch.clear = e.which === 3;
+      });
+      document.addEventListener("mouseup", () => {
+        mapSearch.mouseDown = false;
+      });
+      document.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+      });
+
+      mapSearch.drawMap();
+    </script>
+  </body>
+</html>
