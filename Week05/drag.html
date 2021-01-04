@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      #dragable {
+        width: 100px;
+        height: 100px;
+        display: inline-block;
+        background-color: blue;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
+    <div id="dragable"></div>
+    <script>
+      const containerNode = document.getElementById("container");
+      const dragableNode = document.getElementById("dragable");
+      const text = "你好".repeat(500);
+      const textNode = document.createTextNode(text);
+      containerNode.appendChild(textNode);
+      const ranges = [];
+      for (let i = 0; i < textNode.textContent.length; i++) {
+        const range = document.createRange();
+        range.setStart(textNode, i);
+        range.setEnd(textNode, i);
+        ranges.push(range);
+      }
+      const getNearest = (x, y) => {
+        let minDistance = Infinity;
+        let minRange = null;
+        ranges.forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          const distance = (rect.x - x) ** 2 + (rect.y - y) ** 2;
+          if (distance < minDistance) {
+            minDistance = distance;
+            minRange = el;
+          }
+        });
+        return minRange;
+      };
+      let baseX = void 0,
+        baseY = void 0;
+      dragableNode.addEventListener("mousedown", (event) => {
+        if (!baseX) {
+          baseX = event.clientX;
+        }
+        if (!baseY) {
+          baseY = event.clientY;
+        }
+
+        let startX = event.clientX,
+          startY = event.clientY;
+        const up = (event) => {
+          baseX = baseX + event.clientX - startX;
+          baseY = baseY + event.clientY - startY;
+          document.removeEventListener("mouseup", up);
+          document.removeEventListener("mousemove", move);
+        };
+        const move = (event) => {
+          const range = getNearest(
+            baseX + event.clientX - startX,
+            baseY + event.clientY - startY
+          );
+          range.insertNode(dragableNode);
+        };
+        document.addEventListener("mousemove", move);
+        document.addEventListener("mouseup", up);
+      });
+      document.addEventListener("selectstart", (event) => {
+        event.preventDefault();
+      });
+    </script>
+  </body>
+</html>
