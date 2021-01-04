@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      #color {
+        height: 300px;
+        width: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <input id="r" type="range" min="0" max="255" />
+    <input id="g" type="range" min="0" max="255" />
+    <input id="b" type="range" min="0" max="255" />
+    <div id="color"></div>
+    <script>
+      const callbacks = new Map();
+      const reativities = new Map();
+      let usedReactivities = [];
+      const effect = (cb) => {
+        usedReactivities = [];
+        cb();
+        for (let usedReactivity of usedReactivities) {
+          if (!callbacks.get(usedReactivity[0])) {
+            callbacks.set(usedReactivity[0], new Map());
+          }
+          if (!callbacks.get(usedReactivity[0]).has(usedReactivity[1])) {
+            callbacks.get(usedReactivity[0]).set(usedReactivity[1], []);
+          }
+          callbacks.get(usedReactivity[0]).get(usedReactivity[1]).push(cb);
+        }
+      };
+      const reactive = (object) => {
+        if (reativities.has(object)) {
+          return reativities.get(object);
+        }
+        const proxy = new Proxy(object, {
+          set(obj, prop, val) {
+            obj[prop] = val;
+            // if (typeof obj[prop] === "object") {
+            //   // reativities.delete(obj[prop]);
+            //   // reativities.set(val, proxy);
+            //   callbacks.set(val, callbacks.get(obj[prop]));
+            //   callbacks.delete(obj[prop]);
+            //   console.log(callbacks);
+            // }
+            if (callbacks.get(obj)) {
+              if (callbacks.get(obj).has(prop)) {
+                for (let cb of callbacks.get(obj).get(prop)) {
+                  cb();
+                }
+              }
+            }
+            return obj[prop];
+          },
+          get(obj, prop) {
+            usedReactivities.push([obj, prop]);
+            if (typeof obj[prop] === "object") {
+              return reactive(obj[prop]);
+            }
+            return obj[prop];
+          },
+        });
+        reativities.set(object, proxy);
+        return proxy;
+      };
+      const obj = {
+        r: 0,
+        g: 0,
+        b: 0,
+      };
+      const po = reactive(obj);
+      for (let key in obj) {
+        const element = document.getElementById(key);
+        effect(() => {
+          element.value = po[key];
+        });
+        element.addEventListener("input", (event) => {
+          po[key] = event.target.value;
+        });
+      }
+      effect(() => {
+        document.getElementById(
+          "color"
+        ).style.backgroundColor = `rgb(${po.r},${po.g},${po.b})`;
+      });
+    </script>
+  </body>
+</html>
